@@ -117,5 +117,4 @@ if __name__ == '__main__':
     scheduler = BlockingScheduler()
     scheduler.configure(timezone='UTC')
     scheduler.add_job(callable_func, 'interval', seconds=10)
-    scheduler.add
     scheduler.start()
