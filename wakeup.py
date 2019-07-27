@@ -85,6 +85,7 @@ def FullTextQuery():
     for event in events:
         start = event['start'].get('dateTime', event['start'].get('date'))
         print(event['start'])
+        print('\n', type(start), '\n')
         print(start, ' ', event['summary'])
         print(event)
         print('')
