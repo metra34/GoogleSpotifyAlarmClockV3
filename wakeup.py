@@ -89,8 +89,8 @@ def FullTextQuery():
     for event in events:
         start = event['start'].get('dateTime', event['start'].get('date'))
         print(start, ' ', event['summary'])
-        eventDate = get_date_object(start).isoformat() + 'Z'
-        now = datetime.now().isoformat() + 'Z'
+        eventDate = get_date_object(start)
+        now = datetime.now()
         print(event['status'])
         print(now, ' works? ', eventDate)
         difference = eventDate - now
