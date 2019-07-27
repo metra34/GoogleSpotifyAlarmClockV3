@@ -31,10 +31,9 @@ parser.read('setup.cfg')
 calendar = parser.get('alarm', 'calendar')  # TODO
 q = parser.get('alarm', 'query')
 spotify_playlist = None  # TODO
-mp3_path = parser.get('alarm', 'mp3_path')
+mp3_paths = parser.get('alarm', 'mp3_paths')
 
 service = None
-events_result = None
 
 def auth():
     global service
@@ -66,8 +65,7 @@ def FullTextQuery():
     global service
     global calendar
     global q
-    global mp3_path
-    global events_result
+    global mp3_paths
 
     try:
         if not service:
@@ -88,7 +86,6 @@ def FullTextQuery():
                                           orderBy='startTime').execute()
     now = utc.localize(datetime.utcnow())
     events = events_result.get('items', [])
-
     processedCount = 0
     if not events:
         print('No upcoming events found.')
@@ -102,21 +99,25 @@ def FullTextQuery():
             print ("Waking you up!")
             print ("---")
             # play the first available song from a random provided directory
-            for mp3_dir in random.shuffle(mp3_path.split(',')):
-                songfile = random.choice(os.listdir(mp3_dir))
+            songfile = None
+            for mp3_path in random.shuffle(mp3_paths.split(',')):
+                try:
+                    songfile = random.choice(os.listdir(mp3_path))
+                except:
+                    print ('bad path: ', mp3_path)
                 if os.path.isfile(songfile):
+                    print ("Now Playing:", songfile)
+                    command = "mpg321" + " " + mp3_path + "'"+songfile+"'" + " -g 100"
+                    print (command)
+                    os.system(command)  # plays the song
                     break
-            print ("Now Playing:", songfile)
-            command = "mpg321" + " " + mp3_path + "'"+songfile+"'" + " -g 100"
-            print (command)
-            os.system(command)  # plays the song
         else:
             print ("Wait for it...\n")
         processedCount = processedCount + 1
 
         if (difference.days > 1):
             print('processed ', processedCount, ' entries.')
-            exit(0)
+            break
 
 
 def get_date_object(date_string):
