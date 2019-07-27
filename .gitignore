@@ -2,3 +2,4 @@
 credentials.json
 credentials_service.json
 *.log
+*.pickle
