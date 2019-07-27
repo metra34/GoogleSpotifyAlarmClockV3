@@ -10,7 +10,7 @@ import os
 import pickle
 import random
 import re
-import subprocess
+# import subprocess
 import time
 from ConfigParser import SafeConfigParser
 from datetime import datetime, timedelta
@@ -141,10 +141,11 @@ def FullTextQuery():
             random_paths = random.sample(split_paths, len(split_paths))
             for mp3_path in random_paths:
                 try:
-                    songfile = random.choice(os.listdir(mp3_path.strip()))
+                    mp3_path = mp3_path.strip()
+                    songfile = random.choice(os.listdir(mp3_path))
                     if os.path.isfile(songfile):
-                        logger.info('Now Playing: \'%s\'' % (songfile))
-                        command = 'mpg321' + ' ' + mp3_path + '"'+songfile+'"' + ' -g 100'
+                        logger.info('Now Playing: \'{}\''.format(songfile))
+                        command = 'mpg321' + ' ' + mp3_path + '"' + songfile + '"' + ' -g 100'
                         logger.debug('Command: {}'.format(command))
                         os.system(command)  # plays the song
                         alarmsCount = alarmsCount + 1
