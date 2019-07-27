@@ -115,6 +115,8 @@ def FullTextQuery():
     processedCount = 0
     skippedCount = 0
     alarmsCount = 0
+    nextIndex = None
+    upperLimitInSecs = 15
     if not events:
         logger.debug('No upcoming events found.')
 
@@ -122,7 +124,7 @@ def FullTextQuery():
         eventDate = get_date_object(event['start'].get('dateTime', event['start'].get('date')))
         dateDifference = (eventDate - now)
 
-        if (abs(dateDifference.total_seconds()) < 15):
+        if (abs(dateDifference.total_seconds()) <= upperLimitInSecs):
             logger.info('Waking you up!')
             logger.debug('{} \n {}'.format(eventDate, dateDifference))
             # play the first available song from a random provided directory
@@ -142,11 +144,21 @@ def FullTextQuery():
                 except:
                     logger.warning('bad path: \'{}\''.format(mp3_path))
         else:
-            skippedCount=skippedCount + 1
-            processedCount=processedCount + 1
+            if not nextIndex and dateDifference.total_seconds() > upperLimitInSecs:
+                nextIndex = processedCount
+            skippedCount = skippedCount + 1
+            processedCount = processedCount + 1
 
-        if (dateDifference.days > 1):
+        if dateDifference.days > 1:
             logger.info('processed entries {} | alarms {} | skipped {}'.format(processedCount, alarmsCount, skippedCount))
+
+            if alarmsCount >= len(events):
+                logger.info('all alarms have been cleared, set more or turn me off.')
+            else:
+                nextAlarm = events[max(nextIndex, alarmsCount)]
+                nextEventDate = get_date_object(nextAlarm['start'].get('dateTime', nextAlarm['start'].get('date')))
+                nextEventDate.strftime("(%a) %Y-%m-%d at %H:%M %p - %Z")
+                logger.info('Next alarm will be on <{}>'.format(nextEventDate))
             break
 
 
@@ -167,7 +179,7 @@ def callable_func():
 if __name__ == '__main__':
     auth()
     # Run scheduler service
-    scheduler=BlockingScheduler()
+    scheduler = BlockingScheduler()
     scheduler.configure(timezone='UTC')
     scheduler.add_job(callable_func, 'interval', seconds=10)
     try:
