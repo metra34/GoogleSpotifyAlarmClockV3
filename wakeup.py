@@ -31,6 +31,7 @@ spotify_playlist = None  # TODO
 mp3_path = parser.get('alarm', 'mp3_path')
 
 service = None
+events_result = None
 # limit the query range to 8 days
 # date = (datetime.now() + timedelta(days=-1)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
 # endDate = (datetime.now() + timedelta(days=14)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
@@ -66,6 +67,7 @@ def FullTextQuery():
     global calendar
     global q
     global mp3_path
+    global events_result
 
     print('Full text query for events on Primary Calendar: \'%s\'' % (calendar))
     print('Looking for query: \'%s\'' % (q))
@@ -87,13 +89,11 @@ def FullTextQuery():
     if not events:
         print('No upcoming events found.')
     for event in events:
-        start = event['start'].get('dateTime', event['start'].get('date'))
-        print(start, ' ', event['summary'])
-        eventDate = get_date_object(start)
+        eventStart = event['start'].get('dateTime', event['start'].get('date'))
+        eventDate = get_date_object(eventStart)
         now = datetime.now()
-        print(event['status'])
-        print(now, ' works? ', eventDate)
         difference = eventDate - now
+        print(now, ' works? ', eventDate)
         print('difference!', difference.total_seconds())
 
         if (difference.total_seconds() < 15):
