@@ -90,7 +90,7 @@ def FullTextQuery():
         print('No upcoming events found.')
     for event in events:
         eventStart = event['start'].get('dateTime', event['start'].get('date'))
-        eventTime = get_date_object(eventStart).time().time()
+        eventTime = get_date_object(eventStart).time()
         now = datetime.now().time()
         print ('here2')
         difference = eventTime - now
