@@ -94,11 +94,12 @@ def FullTextQuery():
         eventStart = event['start'].get('dateTime', event['start'].get('date'))
         eventDate = get_date_object(eventStart)
         print ('here2')
+        print(now, ' works? ', eventDate)
         if eventDate > now:
             print('here3')
-        difference = eventDate - now
+        difference = (eventDate - now)
+        print(difference)
         print (type(now), ' ', type(eventDate))
-        print(now, ' works? ', eventDate, ' = ', difference)
 
         if (difference < upperLimitDate):
             print ("Waking you up!")
@@ -141,6 +142,11 @@ def get_date_object(date_string):
 
 def get_date_string(date_object):
     return rfc3339.rfc3339(date_object)
+
+def days_between(d1, d2):
+    d1 = datetime.strptime(d1, "%Y-%m-%d")
+    d2 = datetime.strptime(d2, "%Y-%m-%d")
+    return abs((d2 - d1).days)
 
 
 # Function to be run by Scheduler
