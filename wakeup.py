@@ -85,18 +85,20 @@ def FullTextQuery():
                                           maxResults=100, timeMax=endDate, singleEvents=True,
                                           orderBy='startTime').execute()
     events = events_result.get('items', [])
+    upperLimitDate = (datetime.utcnow() + timedelta(seconds=15))
+    now = datetime.now()
     print ('here')
     if not events:
         print('No upcoming events found.')
     for event in events:
         eventStart = event['start'].get('dateTime', event['start'].get('date'))
-        eventTime = get_date_object(eventStart).time()
-        now = datetime.now().time()
+        eventDate = get_date_object(eventStart)
         print ('here2')
-        difference = eventTime - now
-        print(now, ' works? ', eventTime, ' = ', difference)
+        difference = eventDate - now
+        print (type(now), ' ', type(eventDate))
+        print(now, ' works? ', eventDate, ' = ', difference)
 
-        if (difference.total_seconds() < 15):
+        if (difference < upperLimitDate):
             print ("Waking you up!")
             print ("---")
             # choosing by random an .mp3 file from direcotry
