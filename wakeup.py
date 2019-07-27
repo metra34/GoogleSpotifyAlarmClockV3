@@ -68,9 +68,13 @@ def FullTextQuery():
 
     print('Getting the upcoming alarms')
 
+    if not service:
+        auth()
+
     startDate = (datetime.utcnow() + timedelta(days=-1)).isoformat() + 'Z'
     endDate = (datetime.utcnow() + timedelta(days=8)).isoformat() + 'Z'
     # TODO implement method for getting all calendars, then filtering ID by name
+    # pylint: disable=no-member
     events_result = service.events().list(calendarId='primary', timeMin=startDate,
                                           maxResults=100, timeMax=endDate, singleEvents=True,
                                           orderBy='startTime').execute()
@@ -80,7 +84,10 @@ def FullTextQuery():
         print('No upcoming events found.')
     for event in events:
         start = event['start'].get('dateTime', event['start'].get('date'))
-        print(start, event['summary'])
+        print(event['start'])
+        print(start, ' ', event['summary'])
+        print(event)
+        print('')
 
     # feed = calendar_service.CalendarQuery(query)
     # for i, an_event in enumerate(feed.entry):
@@ -116,5 +123,9 @@ if __name__ == '__main__':
     # Run scheduler service
     scheduler = BlockingScheduler()
     scheduler.configure(timezone='UTC')
-    scheduler.add_job(callable_func, 'interval', seconds=10)
-    scheduler.start()
+    scheduler.add_job(callable_func, 'interval', seconds=5)
+    try:
+        scheduler.start()
+    except (KeyboardInterrupt, SystemExit):
+        scheduler.shutdown()
+        exit(0)
