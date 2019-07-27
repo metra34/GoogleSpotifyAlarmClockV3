@@ -157,8 +157,8 @@ def FullTextQuery():
             else:
                 nextAlarm = events[max(nextIndex, alarmsCount)]
                 nextEventDate = get_date_object(nextAlarm['start'].get('dateTime', nextAlarm['start'].get('date')))
-                nextEventDate.strftime("(%a) %Y-%m-%d at %H:%M %p - %Z")
-                logger.info('Next alarm will be on <{}>'.format(nextEventDate))
+                nextEventDate.strftime('%Y-%m-%d at %H:%M %p %z')
+                logger.info('Next alarm will go off on << {} >>'.format(nextEventDate))
             break
 
 
