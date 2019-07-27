@@ -5,21 +5,24 @@
 from __future__ import print_function
 import pickle
 import os
+import subprocess
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 import random
 from ConfigParser import SafeConfigParser
 from datetime import datetime, timedelta
+from pytz import utc
 import time
 import rfc3339
 import iso8601
+from math import fabs
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 
 # used for development. Not needed for normal usage.
 import logging
-logging.basicConfig(filename='wakeup.log', filemode='w')
+logging.basicConfig(filename='alarm.log', filemode='w')
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
 
 # Global variables that can be changed in wakeup.cfg file
@@ -32,10 +35,6 @@ mp3_path = parser.get('alarm', 'mp3_path')
 
 service = None
 events_result = None
-# limit the query range to 8 days
-# date = (datetime.now() + timedelta(days=-1)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
-# endDate = (datetime.now() + timedelta(days=14)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
-
 
 def auth():
     global service
@@ -43,6 +42,7 @@ def auth():
 
     # The file token.pickle stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first time.
+    print('authorizing...')
     creds = None
     if os.path.exists('token.pickle'):
         with open('token.pickle', 'rb') as token:
@@ -69,84 +69,59 @@ def FullTextQuery():
     global mp3_path
     global events_result
 
+    try:
+        if not service:
+            auth()
+    except:
+        scheduler.shutdown()
+        exit(1)
+
     print('Full text query for events on Primary Calendar: \'%s\'' % (calendar))
-    print('Looking for query: \'%s\'' % (q))
-
-    print('Getting the upcoming alarms')
-
-    if not service:
-        auth()
+    print('Fetching events with query: \'%s\'' % (q))
 
     startDate = (datetime.utcnow() + timedelta(days=-1)).isoformat() + 'Z'
     endDate = (datetime.utcnow() + timedelta(days=8)).isoformat() + 'Z'
-    # TODO implement method for getting all calendars, then filtering ID by name
+
     # pylint: disable=no-member
     events_result = service.events().list(calendarId='primary', timeMin=startDate,
-                                          maxResults=100, timeMax=endDate, singleEvents=True,
+                                          maxResults=20, timeMax=endDate, singleEvents=True,
                                           orderBy='startTime').execute()
+    now = utc.localize(datetime.utcnow())
     events = events_result.get('items', [])
-    upperLimitDate = (datetime.utcnow() + timedelta(seconds=15))
-    now = datetime.now()
-    print ('here')
+
+    processedCount = 0
     if not events:
         print('No upcoming events found.')
-    for event in events:
-        eventStart = event['start'].get('dateTime', event['start'].get('date'))
-        eventDate = get_date_object(eventStart)
-        print ('here2')
-        print(now, ' works? ', eventDate)
-        if eventDate > now:
-            print('here3')
-        difference = (eventDate - now)
-        print(difference)
-        print (type(now), ' ', type(eventDate))
 
-        if (difference < upperLimitDate):
+    for event in events:
+        eventDate = get_date_object(event['start'].get('dateTime', event['start'].get('date')))
+        difference = (eventDate - now)
+        print(difference, '  ', difference < timedelta(seconds=15))
+
+        if (abs(difference.total_seconds()) < 15):
             print ("Waking you up!")
             print ("---")
             # choosing by random an .mp3 file from direcotry
             songfile = random.choice(os.listdir(mp3_path))
             print ("Now Playing:", songfile)
-            #  plays the MP3 in it's entierty. As long as the file is longer
-            #  than a minute it will only be played once:
             command = "mpg321" + " " + mp3_path + "'"+songfile+"'" + " -g 100"
             print (command)
             os.system(command)  # plays the song
         else:
             print ("Wait for it...\n")
+        processedCount = processedCount + 1
 
+        if (difference.days > 1):
+            print('processed ', processedCount, ' entries.')
+            exit(0)
 
-
-    # feed = calendar_service.CalendarQuery(query)
-    # for i, an_event in enumerate(feed.entry):
-    #     for a_when in an_event.when:
-    #         print " "
-    #         print an_event.title.text, "Scheduled:", i, "For:", time.strftime('%d-%m-%Y %H:%M',
-    #   time.localtime(tf_from_timestamp(a_when.start_time))), "Current Time:", time.strftime('%d-%m-%Y %H:%M')
-    #         if time.strftime('%d-%m-%Y %H:%M', time.localtime(tf_from_timestamp(a_when.start_time))) == time.strftime('%d-%m-%Y %H:%M'):
-    #             print "Waking you up!"
-    #             print "---"
-    #             # choosing by random an .mp3 file from direcotry
-    #             songfile = random.choice(os.listdir(mp3_path))
-    #             print "Now Playing:", songfile
-    #             #  plays the MP3 in it's entierty. As long as the file is longer
-    #             #  than a minute it will only be played once:
-    #             command = "mpg321" + " " + mp3_path + "'"+songfile+"'" + " -g 100"
-    #             print command
-    #             os.system(command)  # plays the song
-    #         else:
-    #             print "Wait for it..."  # the event's start time is not the system's current time
 
 def get_date_object(date_string):
     return iso8601.parse_date(date_string)
 
+
 def get_date_string(date_object):
     return rfc3339.rfc3339(date_object)
-
-def days_between(d1, d2):
-    d1 = datetime.strptime(d1, "%Y-%m-%d")
-    d2 = datetime.strptime(d2, "%Y-%m-%d")
-    return abs((d2 - d1).days)
 
 
 # Function to be run by Scheduler
