@@ -16,7 +16,6 @@ from ConfigParser import SafeConfigParser
 from datetime import datetime, timedelta
 from logging.handlers import TimedRotatingFileHandler
 from math import fabs
-
 import iso8601
 import rfc3339
 from apscheduler.schedulers.blocking import BlockingScheduler
@@ -27,20 +26,26 @@ from pytz import utc
 
 from isort.utils import difference
 
-log_format = "%(asctime)s - %(levelname)s - %(message)s"
-formatter = logging.Formatter(log_format)
+# create log directory
+if not os.path.isdir('logs'):
+    os.mkdir('logs')
 
+rootLogger = logging.getLogger()
 log_level = 10
-handler = TimedRotatingFileHandler("alarms.log", when="midnight", interval=1)
-handler.setLevel(log_level)
+rootLogger.setLevel(log_level)
 
-handler.setFormatter(formatter)
-handler.suffix = "%Y%m%d"
-handler.extMatch = re.compile(r"^\d{8}$")
+logFormatter = logging.Formatter("%(asctime)s - [%(module)-10s %(lineno)-4d] - %(levelname)-5.5s - %(message)s")
 
-# finally add handler to logger
-logger = logging.getLogger()
-logger.addHandler(handler)
+fileHandler = TimedRotatingFileHandler("logs/alarms.log", when="midnight", interval=1)
+fileHandler.setLevel(log_level)
+fileHandler.setFormatter(logFormatter)
+fileHandler.suffix = "%Y%m%d"
+fileHandler.extMatch = re.compile(r"^\d{8}$")
+rootLogger.addHandler(fileHandler)
+
+consoleHandler = logging.StreamHandler()
+consoleHandler.setFormatter(logFormatter)
+rootLogger.addHandler(consoleHandler)
 
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
 
@@ -58,7 +63,7 @@ def auth():
     global service
     global SCOPES
 
-    logger = logging.getLogger()
+    logger = logging.getLogger('wakeup')
 
     # The file token.pickle stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first time.
@@ -78,7 +83,7 @@ def auth():
         # Save the credentials for the next run
         with open('token.pickle', 'wb') as token:
             pickle.dump(creds, token)
-    service = build('calendar', 'v3', credentials=creds)
+    service = build('calendar', 'v3', credentials=creds, cache_discovery=False)
 
 
 # Main query
@@ -88,7 +93,7 @@ def FullTextQuery():
     global q
     global mp3_paths
 
-    logger = logging.getLogger()
+    logger = logging.getLogger('wakeup')
 
     try:
         if not service:
@@ -169,6 +174,6 @@ if __name__ == '__main__':
     try:
         scheduler.start()
     except (KeyboardInterrupt, SystemExit):
-        logger.info('Shutting Down\n---')
+        rootLogger.info('Shutting Down\n---')
         scheduler.shutdown()
         exit(0)
