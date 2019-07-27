@@ -85,13 +85,14 @@ def FullTextQuery():
                                           maxResults=100, timeMax=endDate, singleEvents=True,
                                           orderBy='startTime').execute()
     events = events_result.get('items', [])
-
+    print ('here')
     if not events:
         print('No upcoming events found.')
     for event in events:
         eventStart = event['start'].get('dateTime', event['start'].get('date'))
         eventTime = get_date_object(eventStart).time().time()
         now = datetime.now().time()
+        print ('here2')
         difference = eventTime - now
         print(now, ' works? ', eventTime, ' = ', difference)
 
