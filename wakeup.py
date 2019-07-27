@@ -128,7 +128,8 @@ def FullTextQuery():
             # play the first available song from a random provided directory
             songfile = None
             split_paths = mp3_paths.split(',')
-            for mp3_path in random.sample(split_paths, len(split_paths)):
+            random_paths = random.sample(split_paths, len(split_paths))
+            for mp3_path in random_paths:
                 try:
                     songfile = random.choice(os.listdir(mp3_path.strip()))
                     if os.path.isfile(songfile):
