@@ -4,15 +4,17 @@
 
 from __future__ import print_function
 
-# used for development. Not needed for normal usage.
 import logging
+# used for development. Not needed for normal usage.
 import os
 import pickle
 import random
+import re
 import subprocess
 import time
 from ConfigParser import SafeConfigParser
 from datetime import datetime, timedelta
+from logging.handlers import TimedRotatingFileHandler
 from math import fabs
 
 import iso8601
@@ -23,7 +25,23 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from pytz import utc
 
-logging.basicConfig(filename='alarm.log', filemode='w')
+from isort.utils import difference
+
+log_format = "%(asctime)s - %(levelname)s - %(message)s"
+formatter = logging.Formatter(log_format)
+
+log_level = 10
+handler = TimedRotatingFileHandler("alarms.log", when="midnight", interval=1)
+handler.setLevel(log_level)
+
+handler.setFormatter(formatter)
+handler.suffix = "%Y%m%d"
+handler.extMatch = re.compile(r"^\d{8}$")
+
+# finally add handler to logger
+logger = logging.getLogger()
+logger.addHandler(handler)
+
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
 
 # Global variables that can be changed in wakeup.cfg file
@@ -40,9 +58,11 @@ def auth():
     global service
     global SCOPES
 
+    logger = logging.getLogger()
+
     # The file token.pickle stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first time.
-    print('authorizing...')
+    logger.info('authorizing --')
     creds = None
     if os.path.exists('token.pickle'):
         with open('token.pickle', 'rb') as token:
@@ -68,6 +88,8 @@ def FullTextQuery():
     global q
     global mp3_paths
 
+    logger = logging.getLogger()
+
     try:
         if not service:
             auth()
@@ -75,8 +97,8 @@ def FullTextQuery():
         scheduler.shutdown()
         exit(1)
 
-    print('Full text query for events on Primary Calendar: \'%s\'' % (calendar))
-    print('Fetching events with query: \'%s\'' % (q))
+    logger.debug('Full text query for events on Primary Calendar: \'{}\''.format(calendar))
+    logger.debug('Fetching events with query: \'{}\''.format(q))
 
     startDate = (datetime.utcnow() + timedelta(days=-1)).isoformat() + 'Z'
     endDate = (datetime.utcnow() + timedelta(days=8)).isoformat() + 'Z'
@@ -91,15 +113,15 @@ def FullTextQuery():
     skippedCount = 0
     alarmsCount = 0
     if not events:
-        print('No upcoming events found.')
+        logger.debug('No upcoming events found.')
 
     for event in events:
         eventDate = get_date_object(event['start'].get('dateTime', event['start'].get('date')))
         difference = (eventDate - now)
 
         if (abs(difference.total_seconds()) < 15):
-            print ("Waking you up!")
-            print ("---")
+            logger.info('Waking you up!')
+            logger.debug('{} \n {}'.format(eventDate, difference))
             # play the first available song from a random provided directory
             songfile = None
             split_paths = mp3_paths.split(',')
@@ -107,20 +129,20 @@ def FullTextQuery():
                 try:
                     songfile = random.choice(os.listdir(mp3_path.strip()))
                     if os.path.isfile(songfile):
-                        print ("Now Playing:", songfile)
-                        command = "mpg321" + " " + mp3_path + "'"+songfile+"'" + " -g 100"
-                        print (command)
+                        logger.info('Now Playing: \'%s\'' % (songfile))
+                        command = 'mpg321' + ' ' + mp3_path + '"'+songfile+'"' + ' -g 100'
+                        logger.debug('Command: {}'.format(command))
                         os.system(command)  # plays the song
                         alarmsCount = alarmsCount + 1
                         break
                 except:
-                    print ('bad path: ', mp3_path)
+                    logger.warning('bad path: \'%s\'' % (mp3_path()))
         else:
             skippedCount = skippedCount + 1
-        processedCount = processedCount + 1
+            processedCount = processedCount + 1
 
         if (difference.days > 1):
-            print('processed ', processedCount, ' entries | alarms: ', alarmsCount, ' | skipped: ', skippedCount)
+            logger.info('processed entries {} | alarms {} | skipped {}'.format(processedCount, alarmsCount, skippedCount))
             break
 
 
@@ -134,10 +156,8 @@ def get_date_string(date_object):
 
 # Function to be run by Scheduler
 def callable_func():
-    os.system("clear")
-    print("----------------------------")
+    # logging.getLogger().info('Starting sceduled call --')
     FullTextQuery()
-    print("----------------------------")
 
 
 if __name__ == '__main__':
@@ -149,5 +169,6 @@ if __name__ == '__main__':
     try:
         scheduler.start()
     except (KeyboardInterrupt, SystemExit):
+        logger.info('Shutting Down\n---')
         scheduler.shutdown()
         exit(0)
