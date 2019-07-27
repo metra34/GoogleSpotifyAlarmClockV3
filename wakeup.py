@@ -3,25 +3,26 @@
 # Author: Artem C
 
 from __future__ import print_function
-import pickle
-import os
-import subprocess
-from googleapiclient.discovery import build
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
-import random
-from ConfigParser import SafeConfigParser
-from datetime import datetime, timedelta
-from pytz import utc
-import time
-import rfc3339
-import iso8601
-from math import fabs
-
-from apscheduler.schedulers.blocking import BlockingScheduler
 
 # used for development. Not needed for normal usage.
 import logging
+import os
+import pickle
+import random
+import subprocess
+import time
+from ConfigParser import SafeConfigParser
+from datetime import datetime, timedelta
+from math import fabs
+
+import iso8601
+import rfc3339
+from apscheduler.schedulers.blocking import BlockingScheduler
+from google.auth.transport.requests import Request
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+from pytz import utc
+
 logging.basicConfig(filename='alarm.log', filemode='w')
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
 
@@ -87,36 +88,39 @@ def FullTextQuery():
     now = utc.localize(datetime.utcnow())
     events = events_result.get('items', [])
     processedCount = 0
+    skippedCount = 0
+    alarmsCount = 0
     if not events:
         print('No upcoming events found.')
 
     for event in events:
         eventDate = get_date_object(event['start'].get('dateTime', event['start'].get('date')))
         difference = (eventDate - now)
-        print(difference, '  ', difference < timedelta(seconds=15))
 
         if (abs(difference.total_seconds()) < 15):
             print ("Waking you up!")
             print ("---")
             # play the first available song from a random provided directory
             songfile = None
-            for mp3_path in random.shuffle(mp3_paths.split(',')):
+            split_paths = mp3_paths.split(',')
+            for mp3_path in random.sample(split_paths, len(split_paths)):
                 try:
-                    songfile = random.choice(os.listdir(mp3_path))
+                    songfile = random.choice(os.listdir(mp3_path.strip()))
+                    if os.path.isfile(songfile):
+                        print ("Now Playing:", songfile)
+                        command = "mpg321" + " " + mp3_path + "'"+songfile+"'" + " -g 100"
+                        print (command)
+                        os.system(command)  # plays the song
+                        alarmsCount = alarmsCount + 1
+                        break
                 except:
                     print ('bad path: ', mp3_path)
-                if os.path.isfile(songfile):
-                    print ("Now Playing:", songfile)
-                    command = "mpg321" + " " + mp3_path + "'"+songfile+"'" + " -g 100"
-                    print (command)
-                    os.system(command)  # plays the song
-                    break
         else:
-            print ("Wait for it...\n")
+            skippedCount = skippedCount + 1
         processedCount = processedCount + 1
 
         if (difference.days > 1):
-            print('processed ', processedCount, ' entries.')
+            print('processed ', processedCount, ' entries | alarms: ', alarmsCount, ' | skipped: ', skippedCount)
             break
 
 
