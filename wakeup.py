@@ -8,11 +8,15 @@ import os
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
-import time
-import random  # to play the mp3 later
+import random
 from ConfigParser import SafeConfigParser
 from datetime import datetime, timedelta
+import time
+import rfc3339
+import iso8601
+
 from apscheduler.schedulers.blocking import BlockingScheduler
+
 # used for development. Not needed for normal usage.
 import logging
 logging.basicConfig(filename='wakeup.log', filemode='w')
@@ -84,11 +88,10 @@ def FullTextQuery():
         print('No upcoming events found.')
     for event in events:
         start = event['start'].get('dateTime', event['start'].get('date'))
-        print(event['start'])
-        print('\n', type(start), '\n')
         print(start, ' ', event['summary'])
-        print(event)
-        print('')
+        currDate = get_date_object(start)
+        now = datetime.now()
+        print(now, ' works? ', currDate)
 
     # feed = calendar_service.CalendarQuery(query)
     # for i, an_event in enumerate(feed.entry):
@@ -109,6 +112,12 @@ def FullTextQuery():
     #             os.system(command)  # plays the song
     #         else:
     #             print "Wait for it..."  # the event's start time is not the system's current time
+
+def get_date_object(date_string):
+    return iso8601.parse_date(date_string)
+
+def get_date_string(date_object):
+    return rfc3339.rfc3339(date_object)
 
 
 # Function to be run by Scheduler
