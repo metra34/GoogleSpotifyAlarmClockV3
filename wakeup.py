@@ -11,11 +11,12 @@ from google.auth.transport.requests import Request
 import time
 import random  # to play the mp3 later
 from ConfigParser import SafeConfigParser
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from apscheduler.schedulers.blocking import BlockingScheduler
 # used for development. Not needed for normal usage.
 import logging
 logging.basicConfig(filename='wakeup.log', filemode='w')
+SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
 
 # Global variables that can be changed in wakeup.cfg file
 parser = SafeConfigParser()
@@ -33,6 +34,7 @@ service = None
 
 def auth():
     global service
+    global SCOPES
 
     # The file token.pickle stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first time.
@@ -51,7 +53,6 @@ def auth():
         # Save the credentials for the next run
         with open('token.pickle', 'wb') as token:
             pickle.dump(creds, token)
-
     service = build('calendar', 'v3', credentials=creds)
 
 
@@ -111,10 +112,10 @@ def callable_func():
 
 
 if __name__ == '__main__':
-    init()
+    auth()
     # Run scheduler service
-    scheduler = BackgroundScheduler()
-    scheduler.configure(timezone=timezone.utc)
+    scheduler = BlockingScheduler()
+    scheduler.configure(timezone='UTC')
     scheduler.add_job(callable_func, 'interval', seconds=10)
     scheduler.add
     scheduler.start()
