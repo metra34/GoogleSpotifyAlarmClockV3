@@ -28,14 +28,17 @@ from pytz import utc
 if not os.path.isdir('logs'):
     os.mkdir('logs')
 
+# TODO make it variable
+file_log_level = 10
+cons_log_level = 20
+
 rootLogger = logging.getLogger()
-log_level = 10
-rootLogger.setLevel(log_level)
+rootLogger.setLevel(file_log_level)
 
 logFormatter = logging.Formatter("%(asctime)s - [%(module)-10s %(lineno)-4d] - %(levelname)-5.5s - %(message)s")
 
 fileHandler = TimedRotatingFileHandler("logs/alarms.log", when="midnight", interval=1)
-fileHandler.setLevel(log_level)
+fileHandler.setLevel(file_log_level)
 fileHandler.setFormatter(logFormatter)
 fileHandler.suffix = "%Y%m%d"
 fileHandler.extMatch = re.compile(r"^\d{8}$")
@@ -43,7 +46,12 @@ rootLogger.addHandler(fileHandler)
 
 consoleHandler = logging.StreamHandler()
 consoleHandler.setFormatter(logFormatter)
+consoleHandler.setLevel(cons_log_level)
 rootLogger.addHandler(consoleHandler)
+
+# reduce levels for debugging
+logging.getLogger('apscheduler.schedulers').setLevel(40)
+logging.getLogger('googleapiclient.discovery').setLevel(40)
 
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
 
