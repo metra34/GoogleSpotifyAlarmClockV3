@@ -101,8 +101,11 @@ def FullTextQuery():
         if (abs(difference.total_seconds()) < 15):
             print ("Waking you up!")
             print ("---")
-            # choosing by random an .mp3 file from direcotry
-            songfile = random.choice(os.listdir(mp3_path))
+            # play the first available song from a random provided directory
+            for mp3_dir in random.shuffle(mp3_path.split(',')):
+                songfile = random.choice(os.listdir(mp3_dir))
+                if os.path.isfile(songfile):
+                    break
             print ("Now Playing:", songfile)
             command = "mpg321" + " " + mp3_path + "'"+songfile+"'" + " -g 100"
             print (command)
