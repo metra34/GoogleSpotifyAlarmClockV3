@@ -90,11 +90,10 @@ def FullTextQuery():
         print('No upcoming events found.')
     for event in events:
         eventStart = event['start'].get('dateTime', event['start'].get('date'))
-        eventDate = get_date_object(eventStart)
-        now = datetime.now()
-        difference = eventDate - now
-        print(now, ' works? ', eventDate)
-        print('difference!', difference.total_seconds())
+        eventTime = get_date_object(eventStart).time().time()
+        now = datetime.now().time()
+        difference = eventTime - now
+        print(now, ' works? ', eventTime, ' = ', difference)
 
         if (difference.total_seconds() < 15):
             print ("Waking you up!")
