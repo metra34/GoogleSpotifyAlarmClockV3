@@ -94,6 +94,8 @@ def FullTextQuery():
         eventStart = event['start'].get('dateTime', event['start'].get('date'))
         eventDate = get_date_object(eventStart)
         print ('here2')
+        if eventDate > now:
+            print('here3')
         difference = eventDate - now
         print (type(now), ' ', type(eventDate))
         print(now, ' works? ', eventDate, ' = ', difference)
