@@ -139,10 +139,10 @@ def FullTextQuery():
                         alarmsCount = alarmsCount + 1
                         break
                 except:
-                    logger.warning('bad path: \'%s\'' % (mp3_path()))
+                    logger.warning('bad path: \'{}\''.format(mp3_path))
         else:
-            skippedCount = skippedCount + 1
-            processedCount = processedCount + 1
+            skippedCount=skippedCount + 1
+            processedCount=processedCount + 1
 
         if (dateDifference.days > 1):
             logger.info('processed entries {} | alarms {} | skipped {}'.format(processedCount, alarmsCount, skippedCount))
@@ -166,7 +166,7 @@ def callable_func():
 if __name__ == '__main__':
     auth()
     # Run scheduler service
-    scheduler = BlockingScheduler()
+    scheduler=BlockingScheduler()
     scheduler.configure(timezone='UTC')
     scheduler.add_job(callable_func, 'interval', seconds=10)
     try:
