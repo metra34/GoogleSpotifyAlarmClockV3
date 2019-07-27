@@ -89,9 +89,28 @@ def FullTextQuery():
     for event in events:
         start = event['start'].get('dateTime', event['start'].get('date'))
         print(start, ' ', event['summary'])
-        currDate = get_date_object(start)
-        now = datetime.now()
-        print(now, ' works? ', currDate)
+        eventDate = get_date_object(start).isoformat() + 'Z'
+        now = datetime.now().isoformat() + 'Z'
+        print(event['status'])
+        print(now, ' works? ', eventDate)
+        difference = eventDate - now
+        print('difference!', difference.total_seconds())
+
+        if (difference.total_seconds() < 15):
+            print ("Waking you up!")
+            print ("---")
+            # choosing by random an .mp3 file from direcotry
+            songfile = random.choice(os.listdir(mp3_path))
+            print ("Now Playing:", songfile)
+            #  plays the MP3 in it's entierty. As long as the file is longer
+            #  than a minute it will only be played once:
+            command = "mpg321" + " " + mp3_path + "'"+songfile+"'" + " -g 100"
+            print (command)
+            os.system(command)  # plays the song
+        else:
+            print ("Wait for it...\n")
+
+
 
     # feed = calendar_service.CalendarQuery(query)
     # for i, an_event in enumerate(feed.entry):
@@ -133,7 +152,7 @@ if __name__ == '__main__':
     # Run scheduler service
     scheduler = BlockingScheduler()
     scheduler.configure(timezone='UTC')
-    scheduler.add_job(callable_func, 'interval', seconds=5)
+    scheduler.add_job(callable_func, 'interval', seconds=10)
     try:
         scheduler.start()
     except (KeyboardInterrupt, SystemExit):
