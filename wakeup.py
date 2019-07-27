@@ -24,8 +24,6 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from pytz import utc
 
-from isort.utils import difference
-
 # create log directory
 if not os.path.isdir('logs'):
     os.mkdir('logs')
@@ -122,11 +120,11 @@ def FullTextQuery():
 
     for event in events:
         eventDate = get_date_object(event['start'].get('dateTime', event['start'].get('date')))
-        difference = (eventDate - now)
+        dateDifference = (eventDate - now)
 
-        if (abs(difference.total_seconds()) < 15):
+        if (abs(dateDifference.total_seconds()) < 15):
             logger.info('Waking you up!')
-            logger.debug('{} \n {}'.format(eventDate, difference))
+            logger.debug('{} \n {}'.format(eventDate, dateDifference))
             # play the first available song from a random provided directory
             songfile = None
             split_paths = mp3_paths.split(',')
@@ -146,7 +144,7 @@ def FullTextQuery():
             skippedCount = skippedCount + 1
             processedCount = processedCount + 1
 
-        if (difference.days > 1):
+        if (dateDifference.days > 1):
             logger.info('processed entries {} | alarms {} | skipped {}'.format(processedCount, alarmsCount, skippedCount))
             break
 
