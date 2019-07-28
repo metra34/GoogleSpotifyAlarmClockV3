@@ -10,7 +10,7 @@ import os
 import pickle
 import random
 import re
-# import subprocess
+import subprocess
 import time
 from ConfigParser import SafeConfigParser
 from datetime import datetime, timedelta
@@ -49,7 +49,7 @@ consoleHandler.setFormatter(logFormatter)
 consoleHandler.setLevel(cons_log_level)
 rootLogger.addHandler(consoleHandler)
 
-# reduce levels for debugging
+# reduce levels for some Module loggers
 logging.getLogger('apscheduler.schedulers').setLevel(40)
 logging.getLogger('googleapiclient.discovery').setLevel(40)
 
@@ -93,7 +93,7 @@ def auth():
 
 
 # Main query
-def FullTextQuery():
+def fullTextQuery():
     global service
     global calendar
     global q
@@ -128,11 +128,15 @@ def FullTextQuery():
     if not events:
         logger.debug('No upcoming events found.')
 
+    playing = False
     for event in events:
+        if playing:
+            break
         eventDate = get_date_object(event['start'].get('dateTime', event['start'].get('date')))
         dateDifference = (eventDate - now)
 
-        if (abs(dateDifference.total_seconds()) <= upperLimitInSecs):
+        # if (abs(dateDifference.total_seconds()) <= upperLimitInSecs):
+        if (1):
             logger.info('Waking you up!')
             logger.debug('{} \n {}'.format(eventDate, dateDifference))
             # play the first available song from a random provided directory
@@ -149,6 +153,7 @@ def FullTextQuery():
                         logger.debug('Command: {}'.format(command))
                         os.system(command)  # plays the song
                         alarmsCount = alarmsCount + 1
+                        playing = True
                         break
                 except:
                     logger.warning('bad path: \'{}\''.format(mp3_path))
@@ -182,7 +187,7 @@ def get_date_string(date_object):
 # Function to be run by Scheduler
 def callable_func():
     # logging.getLogger().info('Starting sceduled call --')
-    FullTextQuery()
+    fullTextQuery()
 
 
 if __name__ == '__main__':
@@ -190,10 +195,10 @@ if __name__ == '__main__':
     # Run scheduler service
     scheduler = BlockingScheduler()
     scheduler.configure(timezone='UTC')
-    scheduler.add_job(callable_func, 'interval', seconds=10)
+    scheduler.add_job(callable_func, 'interval', seconds=10, max_instances=1)
     try:
         scheduler.start()
     except (KeyboardInterrupt, SystemExit):
         rootLogger.info('Shutting Down\n---')
-        scheduler.shutdown()
+        scheduler.shutdown(wait=False)
         exit(0)
