@@ -132,7 +132,7 @@ def FullTextQuery():
         eventDate = get_date_object(event['start'].get('dateTime', event['start'].get('date')))
         dateDifference = (eventDate - now)
 
-        if (abs(dateDifference.total_seconds()) <= upperLimitInSecs):
+        if (1):
             logger.info('Waking you up!')
             logger.debug('{} \n {}'.format(eventDate, dateDifference))
             # play the first available song from a random provided directory
@@ -143,7 +143,7 @@ def FullTextQuery():
                 try:
                     mp3_path = mp3_path.strip()
                     songfile = random.choice(os.listdir(mp3_path))
-                    if os.path.isfile(songfile):
+                    if os.path.isfile(mp3_path + songfile):
                         logger.info('Now Playing: \'{}\''.format(songfile))
                         command = 'mpg321' + ' ' + mp3_path + '"' + songfile + '"' + ' -g 100'
                         logger.debug('Command: {}'.format(command))
