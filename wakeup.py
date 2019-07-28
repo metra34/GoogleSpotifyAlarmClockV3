@@ -132,7 +132,7 @@ def FullTextQuery():
         eventDate = get_date_object(event['start'].get('dateTime', event['start'].get('date')))
         dateDifference = (eventDate - now)
 
-        if (1):
+        if (abs(dateDifference.total_seconds()) <= upperLimitInSecs):
             logger.info('Waking you up!')
             logger.debug('{} \n {}'.format(eventDate, dateDifference))
             # play the first available song from a random provided directory
