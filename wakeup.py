@@ -158,7 +158,7 @@ def fullTextQuery():
                     songfile = random.choice(os.listdir(mp3_path))
                     if os.path.isfile(mp3_path + songfile):
                         logger.info('Now Playing: \'{}\''.format(songfile))
-                        command = 'mpg321' + ' ' + '"' + mp3_path + songfile + '"'
+                        command = 'mpg321 ' + mp3_path + songfile
                         logger.debug('Command: {}'.format(command))
                         player_process = Popen(command)  # plays the song
                         exit_code = player_process.wait()
