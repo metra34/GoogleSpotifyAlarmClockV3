@@ -10,12 +10,13 @@ import os
 import pickle
 import random
 import re
-import subprocess
 import time
 from ConfigParser import SafeConfigParser
 from datetime import datetime, timedelta
 from logging.handlers import TimedRotatingFileHandler
 from math import fabs
+from subprocess import Popen
+
 import iso8601
 import rfc3339
 from apscheduler.schedulers.blocking import BlockingScheduler
@@ -28,6 +29,7 @@ from pytz import utc
 if not os.path.isdir('logs'):
     os.mkdir('logs')
 
+# BEGIN LOG CONFIG
 # TODO make it variable
 file_log_level = 10
 cons_log_level = 20
@@ -50,8 +52,9 @@ consoleHandler.setLevel(cons_log_level)
 rootLogger.addHandler(consoleHandler)
 
 # reduce levels for some Module loggers
-logging.getLogger('apscheduler.schedulers').setLevel(40)
+logging.getLogger('apscheduler.schedulers').setLevel(50)
 logging.getLogger('googleapiclient.discovery').setLevel(40)
+# END LOG CONFIG
 
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
 
@@ -64,10 +67,11 @@ spotify_playlist = None  # TODO
 mp3_paths = parser.get('alarm', 'mp3_paths')
 
 service = None
+player_process = None
+wait_attempts = 0
 
 def auth():
-    global service
-    global SCOPES
+    global service, SCOPES
 
     logger = logging.getLogger('wakeup')
 
@@ -94,18 +98,26 @@ def auth():
 
 # Main query
 def fullTextQuery():
-    global service
-    global calendar
-    global q
-    global mp3_paths
+    global service, player_process, wait_attempts, calendar, q, mp3_paths
 
     logger = logging.getLogger('wakeup')
+
+    if player_process != None and wait_attempts < 100 and player_process.poll() == None:
+        wait_attempts = wait_attempts + 1
+        logger.debug('song playing -- defferering task, pOpen poll {}, wait_attempts {}'.format(player_process.poll(), wait_attempts))
+        return
+
+    if wait_attempts >= 100:
+        logger.critical('CRITICAL: exceeded max attempts to wait on the song to finish, terminating program')
+        scheduler.shutdown(wait=False)
+        exit(1)
 
     try:
         if not service:
             auth()
     except:
-        scheduler.shutdown()
+        logger.critical('CRITICAL: to auth google api data, terminating the program')
+        scheduler.shutdown(wait=False)
         exit(1)
 
     logger.debug('Full text query for events on Primary Calendar: \'{}\''.format(calendar))
@@ -128,10 +140,7 @@ def fullTextQuery():
     if not events:
         logger.debug('No upcoming events found.')
 
-    playing = False
     for event in events:
-        if playing:
-            break
         eventDate = get_date_object(event['start'].get('dateTime', event['start'].get('date')))
         dateDifference = (eventDate - now)
 
@@ -149,11 +158,14 @@ def fullTextQuery():
                     songfile = random.choice(os.listdir(mp3_path))
                     if os.path.isfile(mp3_path + songfile):
                         logger.info('Now Playing: \'{}\''.format(songfile))
-                        command = 'mpg321' + ' ' + mp3_path + '"' + songfile + '"' + ' -g 100'
+                        command = 'mpg321' + ' ' + '"' + mp3_path + songfile + '"'
                         logger.debug('Command: {}'.format(command))
-                        os.system(command)  # plays the song
+                        player_process = Popen(command)  # plays the song
+                        exit_code = player_process.wait()
+                        logger.info('finished playing {} with exit_code {}'.format(songfile, exit_code))
                         alarmsCount = alarmsCount + 1
-                        playing = True
+                        player_process = None
+                        wait_attempts = 0
                         break
                 except:
                     logger.warning('bad path: \'{}\''.format(mp3_path))
@@ -195,7 +207,7 @@ if __name__ == '__main__':
     # Run scheduler service
     scheduler = BlockingScheduler()
     scheduler.configure(timezone='UTC')
-    scheduler.add_job(callable_func, 'interval', seconds=10, max_instances=1)
+    scheduler.add_job(callable_func, 'interval', seconds=10, max_instances=2)
     try:
         scheduler.start()
     except (KeyboardInterrupt, SystemExit):
