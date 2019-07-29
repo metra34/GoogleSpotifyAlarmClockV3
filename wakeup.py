@@ -18,6 +18,7 @@ from math import fabs
 from subprocess import Popen
 
 import iso8601
+import psutil
 import rfc3339
 from apscheduler.schedulers.blocking import BlockingScheduler
 from google.auth.transport.requests import Request
@@ -43,7 +44,7 @@ fileHandler = TimedRotatingFileHandler("logs/alarms.log", when="midnight", inter
 fileHandler.setLevel(file_log_level)
 fileHandler.setFormatter(logFormatter)
 fileHandler.suffix = "%Y%m%d"
-fileHandler.extMatch = re.compile(r"^\d{8}$")
+# fileHandler.extMatch = re.compile(r"^\d{8}$")
 rootLogger.addHandler(fileHandler)
 
 consoleHandler = logging.StreamHandler()
@@ -102,23 +103,23 @@ def fullTextQuery():
 
     logger = logging.getLogger('wakeup')
 
-    if player_process != None and wait_attempts < 100 and player_process.poll() == None:
+    # FIXME set to wait_attempts = 100
+    if player_process != None and wait_attempts < 1 and player_process.poll() == None:
         wait_attempts = wait_attempts + 1
         logger.debug('song playing -- defferering task, pOpen poll {}, wait_attempts {}'.format(player_process.poll(), wait_attempts))
         return
 
-    if wait_attempts >= 100:
+    # FIXME set to wait_attempts = 100 | NOTE: inteneded for larger thread pools, unfinished
+    if wait_attempts >= 1:
         logger.critical('CRITICAL: exceeded max attempts to wait on the song to finish, terminating program')
-        scheduler.shutdown(wait=False)
-        exit(1)
+        shutdown(1)
 
     try:
         if not service:
             auth()
     except:
         logger.critical('CRITICAL: to auth google api data, terminating the program')
-        scheduler.shutdown(wait=False)
-        exit(1)
+        shutdown(1)
 
     logger.debug('Full text query for events on Primary Calendar: \'{}\''.format(calendar))
     logger.debug('Fetching events with query: \'{}\''.format(q))
@@ -198,8 +199,25 @@ def get_date_string(date_object):
 
 # Function to be run by Scheduler
 def callable_func():
-    # logging.getLogger().info('Starting sceduled call --')
     fullTextQuery()
+
+
+def kill(proc_pid):
+    process = psutil.Process(proc_pid)
+    for proc in process.children(recursive=True):
+        proc.kill()
+    process.kill()
+
+
+def shutdown(exit_code):
+    rootLogger.info('Shutting Down')
+    if player_process:
+        try:
+            kill(player_process)
+        except:
+            rootLogger.warning('failed to terminate player_process')
+    scheduler.shutdown(wait=False)
+    exit(exit_code)
 
 
 if __name__ == '__main__':
@@ -207,10 +225,8 @@ if __name__ == '__main__':
     # Run scheduler service
     scheduler = BlockingScheduler()
     scheduler.configure(timezone='UTC')
-    scheduler.add_job(callable_func, 'interval', seconds=10, max_instances=2)
+    scheduler.add_job(callable_func, 'interval', seconds=10, max_instances=1)
     try:
         scheduler.start()
     except (KeyboardInterrupt, SystemExit):
-        rootLogger.info('Shutting Down\n---')
-        scheduler.shutdown(wait=False)
-        exit(0)
+        shutdown(0)
