@@ -18,7 +18,6 @@ from math import fabs
 from subprocess import Popen
 
 import iso8601
-import psutil
 import rfc3339
 from apscheduler.schedulers.blocking import BlockingScheduler
 from google.auth.transport.requests import Request
@@ -202,18 +201,11 @@ def callable_func():
     fullTextQuery()
 
 
-def kill(proc_pid):
-    process = psutil.Process(proc_pid)
-    for proc in process.children(recursive=True):
-        proc.kill()
-    process.kill()
-
-
 def shutdown(exit_code):
     rootLogger.info('Shutting Down')
     if player_process:
         try:
-            kill(player_process)
+            player_process.kill()
         except:
             rootLogger.warning('failed to terminate player_process')
     scheduler.shutdown(wait=False)

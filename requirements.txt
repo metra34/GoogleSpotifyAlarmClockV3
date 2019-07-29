@@ -4,4 +4,3 @@ google-auth-oauthlib==0.4.0
 apscheduler
 rfc3339
 iso8601
-psutil
