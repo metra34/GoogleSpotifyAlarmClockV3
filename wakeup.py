@@ -27,7 +27,7 @@ from pytz import utc
 
 # create log directory
 if not os.path.isdir('logs'):
-    os.mkdir('logs')
+	os.mkdir('logs')
 
 # BEGIN LOG CONFIG
 # TODO make it variable
@@ -71,154 +71,153 @@ player_process = None
 wait_attempts = 0
 
 def auth():
-    global service, SCOPES
+	global service, SCOPES
 
-    logger = logging.getLogger('wakeup')
+	logger = logging.getLogger('wakeup')
 
-    # The file token.pickle stores the user's access and refresh tokens, and is
-    # created automatically when the authorization flow completes for the first time.
-    logger.info('authorizing --')
-    creds = None
-    if os.path.exists('token.pickle'):
-        with open('token.pickle', 'rb') as token:
-            creds = pickle.load(token)
-    # If there are no (valid) credentials available, let the user log in.
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', SCOPES)
-            creds = flow.run_local_server(port=0)
-        # Save the credentials for the next run
-        with open('token.pickle', 'wb') as token:
-            pickle.dump(creds, token)
-    service = build('calendar', 'v3', credentials=creds, cache_discovery=False)
+	# The file token.pickle stores the user's access and refresh tokens, and is
+	# created automatically when the authorization flow completes for the first time.
+	logger.info('authorizing --')
+	creds = None
+	if os.path.exists('token.pickle'):
+		with open('token.pickle', 'rb') as token:
+			creds = pickle.load(token)
+	# If there are no (valid) credentials available, let the user log in.
+	if not creds or not creds.valid:
+		if creds and creds.expired and creds.refresh_token:
+			creds.refresh(Request())
+		else:
+			flow = InstalledAppFlow.from_client_secrets_file(
+				'credentials.json', SCOPES)
+			creds = flow.run_local_server(port=0)
+		# Save the credentials for the next run
+		with open('token.pickle', 'wb') as token:
+			pickle.dump(creds, token)
+	service = build('calendar', 'v3', credentials=creds, cache_discovery=False)
 
 
 # Main query
 def fullTextQuery():
-    global service, player_process, wait_attempts, calendar, q, mp3_paths
+	global service, player_process, wait_attempts, calendar, q, mp3_paths
 
-    logger = logging.getLogger('wakeup')
+	logger = logging.getLogger('wakeup')
 
-    # FIXME set to wait_attempts = 100
-    if player_process != None and wait_attempts < 1 and player_process.poll() == None:
-        wait_attempts = wait_attempts + 1
-        logger.debug('song playing -- defferering task, pOpen poll {}, wait_attempts {}'.format(player_process.poll(), wait_attempts))
-        return
+	# FIXME set to wait_attempts = 100
+	if player_process != None and wait_attempts < 1 and player_process.poll() == None:
+		wait_attempts = wait_attempts + 1
+		logger.debug('song playing -- defferering task, pOpen poll {}, wait_attempts {}'.format(player_process.poll(), wait_attempts))
+		return
 
-    # FIXME set to wait_attempts = 100 | NOTE: inteneded for larger thread pools, unfinished
-    if wait_attempts >= 1:
-        logger.critical('CRITICAL: exceeded max attempts to wait on the song to finish, terminating program')
-        shutdown(1)
+	# FIXME set to wait_attempts = 100 | NOTE: inteneded for larger thread pools, unfinished
+	if wait_attempts >= 1:
+		logger.critical('CRITICAL: exceeded max attempts to wait on the song to finish, terminating program')
+		shutdown(1)
 
-    try:
-        if not service:
-            auth()
-    except:
-        logger.critical('CRITICAL: to auth google api data, terminating the program')
-        shutdown(1)
+	try:
+		if not service:
+			auth()
+	except:
+		logger.critical('CRITICAL: to auth google api data, terminating the program')
+		shutdown(1)
 
-    logger.debug('Full text query for events on Primary Calendar: \'{}\''.format(calendar))
-    logger.debug('Fetching events with query: \'{}\''.format(q))
+	logger.debug('Full text query for events on Primary Calendar: \'{}\''.format(calendar))
+	logger.debug('Fetching events with query: \'{}\''.format(q))
 
-    startDate = (datetime.utcnow() + timedelta(days=-1)).isoformat() + 'Z'
-    endDate = (datetime.utcnow() + timedelta(days=8)).isoformat() + 'Z'
+	startDate = (datetime.utcnow() + timedelta(days=-1)).isoformat() + 'Z'
+	endDate = (datetime.utcnow() + timedelta(days=8)).isoformat() + 'Z'
 
-    # pylint: disable=no-member
-    events_result = service.events().list(calendarId='primary', timeMin=startDate,
-                                          maxResults=20, timeMax=endDate, singleEvents=True,
-                                          orderBy='startTime').execute()
-    now = utc.localize(datetime.utcnow())
-    events = events_result.get('items', [])
-    processedCount = 0
-    skippedCount = 0
-    alarmsCount = 0
-    nextIndex = None
-    upperLimitInSecs = 15
-    if not events:
-        logger.debug('No upcoming events found.')
+	# pylint: disable=no-member
+	events_result = service.events().list(calendarId='primary', timeMin=startDate,
+										  maxResults=20, timeMax=endDate, singleEvents=True,
+										  orderBy='startTime').execute()
+	now = utc.localize(datetime.utcnow())
+	events = events_result.get('items', [])
+	processedCount = 0
+	skippedCount = 0
+	alarmsCount = 0
+	nextIndex = None
+	upperLimitInSecs = 15
+	if not events:
+		logger.debug('No upcoming events found.')
 
-    for event in events:
-        eventDate = get_date_object(event['start'].get('dateTime', event['start'].get('date')))
-        dateDifference = (eventDate - now)
+	for event in events:
+		eventDate = get_date_object(event['start'].get('dateTime', event['start'].get('date')))
+		dateDifference = (eventDate - now)
 
-        # if (abs(dateDifference.total_seconds()) <= upperLimitInSecs):
-        if (1):
-            logger.info('Waking you up!')
-            logger.debug('{} \n {}'.format(eventDate, dateDifference))
-            # play the first available song from a random provided directory
-            songfile = None
-            split_paths = mp3_paths.split(',')
-            random_paths = random.sample(split_paths, len(split_paths))
-            for mp3_path in random_paths:
-                try:
-                    mp3_path = mp3_path.strip()
-                    songfile = random.choice(os.listdir(mp3_path))
-                    if os.path.isfile(mp3_path + songfile):
-                        logger.info('Now Playing: \'{}\''.format(songfile))
-                        command = 'mpg321 ' + mp3_path + songfile + ' -g 100'
-                        logger.debug('Command: {}'.format(command))
-                        player_process = Popen(command, shell=True)  # plays the song
-                        exit_code = player_process.wait()
-                        logger.info('finished playing {} with exit_code {}'.format(songfile, exit_code))
-                        alarmsCount = alarmsCount + 1
-                        player_process = None
-                        wait_attempts = 0
-                        break
-                except:
-                    logger.warning('bad path: \'{}\''.format(mp3_path))
-        else:
-            if not nextIndex and dateDifference.total_seconds() > upperLimitInSecs:
-                nextIndex = processedCount
-            skippedCount = skippedCount + 1
-            processedCount = processedCount + 1
+		if (abs(dateDifference.total_seconds()) <= upperLimitInSecs):
+			logger.info('Waking you up!')
+			logger.debug('{} \n {}'.format(eventDate, dateDifference))
+			# play the first available song from a random provided directory
+			songfile = None
+			split_paths = mp3_paths.split(',')
+			random_paths = random.sample(split_paths, len(split_paths))
+			for mp3_path in random_paths:
+				try:
+					mp3_path = mp3_path.strip()
+					songfile = random.choice(os.listdir(mp3_path))
+					if os.path.isfile(mp3_path + songfile):
+						logger.info('Now Playing: \'{}\''.format(songfile))
+						command = 'mpg321 ' + mp3_path + songfile + ' -g 100'
+						logger.debug('Command: {}'.format(command))
+						player_process = Popen(command, shell=True)  # plays the song
+						exit_code = player_process.wait()
+						logger.info('finished playing {} with exit_code {}'.format(songfile, exit_code))
+						alarmsCount = alarmsCount + 1
+						player_process = None
+						wait_attempts = 0
+						break
+				except:
+					logger.warning('bad path: \'{}\''.format(mp3_path))
+		else:
+			if not nextIndex and dateDifference.total_seconds() > upperLimitInSecs:
+				nextIndex = processedCount
+			skippedCount = skippedCount + 1
+			processedCount = processedCount + 1
 
-        if dateDifference.days > 1:
-            logger.info('processed entries {} | alarms {} | skipped {}'.format(processedCount, alarmsCount, skippedCount))
+		if dateDifference.days > 1:
+			logger.info('processed entries {} | alarms {} | skipped {}'.format(processedCount, alarmsCount, skippedCount))
 
-            if alarmsCount >= len(events):
-                logger.info('all alarms have been cleared, set more or turn me off.')
-            else:
-                nextAlarm = events[max(nextIndex, alarmsCount)]
-                nextEventDate = get_date_object(nextAlarm['start'].get('dateTime', nextAlarm['start'].get('date')))
-                nextEventDate.strftime('%Y-%m-%d at %H:%M %p %z')
-                logger.info('Next alarm will go off on << {} >>'.format(nextEventDate))
-            break
+			if alarmsCount >= len(events):
+				logger.info('all alarms have been cleared, set more or turn me off.')
+			else:
+				nextAlarm = events[max(nextIndex, alarmsCount)]
+				nextEventDate = get_date_object(nextAlarm['start'].get('dateTime', nextAlarm['start'].get('date')))
+				nextEventDate.strftime('%Y-%m-%d at %H:%M %p %z')
+				logger.info('Next alarm will go off on << {} >>'.format(nextEventDate))
+			break
 
 
 def get_date_object(date_string):
-    return iso8601.parse_date(date_string)
+	return iso8601.parse_date(date_string)
 
 
 def get_date_string(date_object):
-    return rfc3339.rfc3339(date_object)
+	return rfc3339.rfc3339(date_object)
 
 
 # Function to be run by Scheduler
 def callable_func():
-    fullTextQuery()
+	fullTextQuery()
 
 
 def shutdown(exit_code):
-    rootLogger.info('Shutting Down')
-    if player_process:
-        try:
-            player_process.kill()
-        except:
-            rootLogger.warning('failed to terminate player_process')
-    scheduler.shutdown(wait=False)
-    exit(exit_code)
+	rootLogger.info('Shutting Down')
+	if player_process:
+		try:
+			player_process.kill()
+		except:
+			rootLogger.warning('failed to terminate player_process')
+	scheduler.shutdown(wait=False)
+	exit(exit_code)
 
 
 if __name__ == '__main__':
-    auth()
-    # Run scheduler service
-    scheduler = BlockingScheduler()
-    scheduler.configure(timezone='UTC')
-    scheduler.add_job(callable_func, 'interval', seconds=10, max_instances=1)
-    try:
-        scheduler.start()
-    except (KeyboardInterrupt, SystemExit):
-        shutdown(0)
+	auth()
+	# Run scheduler service
+	scheduler = BlockingScheduler()
+	scheduler.configure(timezone='UTC')
+	scheduler.add_job(callable_func, 'interval', seconds=10, max_instances=1)
+	try:
+		scheduler.start()
+	except (KeyboardInterrupt, SystemExit):
+		shutdown(0)
